@@ -1,14 +1,13 @@
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 
 from passlib.context import CryptContext
-from pydantic import EmailStr
 from sqlmodel import Field, SQLModel, Relationship
 
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 class PriorityEnum(str, Enum):
     URGENCIA = "URGENCIA"
@@ -53,7 +52,6 @@ class User(SQLModel, table=True):
 
 
 class Task(SQLModel, table=True):
-
     __tablename__ = "tasks"
 
     id: str = Field(default_factory=lambda: secrets.token_urlsafe(8)[:8], primary_key=True)
@@ -64,7 +62,6 @@ class Task(SQLModel, table=True):
     started_at: Optional[datetime] = Field(default_factory=lambda: datetime.now())
     end_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
-
 
     # aquí de la misma manera, esto garantiza la relacion desde el ORK
     user: "User" = Relationship(back_populates="tasks")

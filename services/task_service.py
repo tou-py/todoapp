@@ -48,7 +48,6 @@ class TaskService:
             self.session.rollback()
             raise ValueError(f"Failed to create new task: {e}")
 
-
     def update(self, task_id: str, task_data: TaskUpdate) -> Optional[Task]:
 
         task = self.get_task_by_id(task_id)

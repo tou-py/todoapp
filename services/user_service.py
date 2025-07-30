@@ -1,6 +1,7 @@
 from typing import Optional, List
-from sqlmodel import Session, select
+
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlmodel import Session, select
 
 from models.models import User
 from schemas.schemas import UserUpdate, UserCreate

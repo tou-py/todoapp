@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.exc import IntegrityError
-from starlette import status
 from sqlmodel import Session
+from starlette import status
 
 from config.database import get_session
 from schemas.schemas import UserResponse, UserCreate, UserUpdate
@@ -10,6 +10,7 @@ from services.user_service import UserService
 
 def get_user_service(session: Session = Depends(get_session)) -> UserService:
     return UserService(session)
+
 
 router = APIRouter(prefix="/users", tags=["users"])
 
