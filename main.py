@@ -3,6 +3,7 @@ from fastapi import FastAPI
 
 from config.database import create_db_and_tables
 from routes.user_routes import router as user_router
+from routes.task_routes import router as task_router
 
 
 @asynccontextmanager
@@ -17,3 +18,4 @@ app = FastAPI(
 )
 
 app.include_router(user_router)
+app.include_router(task_router)

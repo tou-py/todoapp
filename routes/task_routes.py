@@ -1,0 +1,65 @@
+from fastapi import Depends, APIRouter, HTTPException
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session
+from starlette import status
+from starlette.responses import Response
+
+from config.database import get_session
+from schemas.schemas import TaskResponse, TaskCreate, TaskUpdate
+from services.task_service import TaskService
+
+
+def get_task_service(session: Session = Depends(get_session)) -> TaskService:
+    return TaskService(session)
+
+
+router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+
+@router.post('/create', response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
+def create(task_data: TaskCreate, task_service: TaskService = Depends(get_task_service)):
+    try:
+        return task_service.create(task_data)
+    except IntegrityError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/{task_id}', response_model=TaskResponse, status_code=status.HTTP_200_OK)
+def get(task_id: str, task_service: TaskService = Depends(get_task_service)):
+    task = task_service.get_task_by_id(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
+@router.put('/{task_id}', response_model=TaskResponse, status_code=status.HTTP_200_OK)
+def update(task_id: str, task_data: TaskUpdate, task_service: TaskService = Depends(get_task_service)):
+    try:
+        updated_task = task_service.update(task_id, task_data)
+        if not updated_task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return updated_task
+    except IntegrityError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete('/{task_id}', status_code=status.HTTP_200_OK)
+def delete(task_id: str, task_service: TaskService = Depends(get_task_service)):
+    try:
+        if not task_service.delete(task_id):
+            raise HTTPException(status_code=404, detail="Task not found")
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except IntegrityError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
