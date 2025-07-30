@@ -43,6 +43,8 @@ class TaskBase(BaseModel):
 
 class TaskCreate(TaskBase):
     user_id: str
+    started_at: datetime = Field(default_factory=datetime.now)
+    completed_at: datetime
 
 
 class TaskUpdate(BaseModel):
