@@ -26,22 +26,24 @@ class UserService:
         if existing_user:
             raise ValueError("User already exists")
 
-        user = User(**user_data.model_dump())
+        user = User.model_validate(user_data)
         user.set_password(user.password)
 
         try:
             self.session.add(user)
             self.session.commit()
             self.session.refresh(user)
+            return user
         except IntegrityError as e:
             print(str(e))
             self.session.rollback()
             raise ValueError("Failed to create user due to DB integrity error")
         except SQLAlchemyError as e:
-            print(str(e))
+            self.session.rollback()
+            raise e
         except Exception as e:
-            print(str(e))
-        return user
+            self.session.rollback()
+            raise e
 
     def update(self, user_id: str, user_data: UserUpdate) -> Optional[User]:
         user = self.get_user_by_id(user_id)
@@ -55,7 +57,7 @@ class UserService:
             del update_data["password"]
 
         # Validar email duplicado
-        if "email" in update_data:
+        if "email" in update_data and update_data["email"] != user.email:
             existing = self.get_user_by_email(update_data["email"])
             if existing and existing.id != user_id:
                 raise ValueError("Email already in use")
@@ -67,17 +69,30 @@ class UserService:
             self.session.add(user)
             self.session.commit()
             self.session.refresh(user)
-        except IntegrityError:
+        except IntegrityError as e:
             self.session.rollback()
-            raise ValueError("Failed to update user due to DB integrity error")
+            raise ValueError(f"Failed to update user due to DB integrity error: {e.orig}")
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise ValueError(f"A database error occurred during update: {e}")
+        except Exception as e:
+            self.session.rollback()
+            raise ValueError(f"An unexpected error occurred during update: {e}")
 
         return user
 
     def delete(self, user_id: str) -> bool:
         user = self.get_user_by_id(user_id)
         if not user:
-            raise ValueError("User does not exist")
+            return False
 
-        self.session.delete(user)
-        self.session.commit()
-        return True
+        try:
+            self.session.delete(user)
+            self.session.commit()
+            return True
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise ValueError(f"A database error occurred during deletion: {e}")
+        except Exception as e:
+            self.session.rollback()
+            raise ValueError(f"An unexpected error occurred during deletion: {e}")
