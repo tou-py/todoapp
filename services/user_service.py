@@ -1,9 +1,9 @@
 from typing import Optional, List
-
 from sqlmodel import Session, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from models.models import User
-from schemas.schemas import UserUpdate
+from schemas.schemas import UserUpdate, UserCreate
 
 
 class UserService:
@@ -15,46 +15,69 @@ class UserService:
 
     def get_user_by_email(self, email: str) -> Optional[User]:
         statement = select(User).where(User.email == email)
-        return self.session.exec(statement).first
+        return self.session.exec(statement).first()
 
     def get_all_users(self, offset: int = 0, limit: int = 100) -> List[User]:
         statement = select(User).offset(offset).limit(limit)
-        return List(self.session.exec(statement).all())
+        return list(self.session.exec(statement).all())
 
-    def create(self, user_data: User) -> User:
-
+    def create(self, user_data: UserCreate) -> User:
         existing_user = self.get_user_by_email(user_data.email)
         if existing_user:
             raise ValueError("User already exists")
 
-        user_data.set_password(user_data.password)
-        self.session.add(user_data)
-        self.session.commit()
-        self.session.refresh(user_data)
-        return user_data
+        user = User(**user_data.model_dump())
+        user.set_password(user.password)
+
+        try:
+            self.session.add(user)
+            self.session.commit()
+            self.session.refresh(user)
+        except IntegrityError as e:
+            print(str(e))
+            self.session.rollback()
+            raise ValueError("Failed to create user due to DB integrity error")
+        except SQLAlchemyError as e:
+            print(str(e))
+        except Exception as e:
+            print(str(e))
+        return user
 
     def update(self, user_id: str, user_data: UserUpdate) -> Optional[User]:
-
         user = self.get_user_by_id(user_id)
         if not user:
             return None
 
-        for key, value in user_data.model_dump(exclude_unset=True).items():
-            if key == "password" and value:
-                user.set_password(value)
-            elif hasattr(user, key):
-                setattr(user, key, value)
+        update_data = user_data.model_dump(exclude_unset=True)
 
-        self.session.add(user)
-        self.session.commit()
-        self.session.refresh(user)
+        if "password" in update_data:
+            user.set_password(update_data["password"])
+            del update_data["password"]
+
+        # Validar email duplicado
+        if "email" in update_data:
+            existing = self.get_user_by_email(update_data["email"])
+            if existing and existing.id != user_id:
+                raise ValueError("Email already in use")
+
+        for key, value in update_data.items():
+            setattr(user, key, value)
+
+        try:
+            self.session.add(user)
+            self.session.commit()
+            self.session.refresh(user)
+        except IntegrityError:
+            self.session.rollback()
+            raise ValueError("Failed to update user due to DB integrity error")
+
         return user
 
     def delete(self, user_id: str) -> bool:
         user = self.get_user_by_id(user_id)
         if not user:
             raise ValueError("User does not exist")
+
         self.session.delete(user)
         self.session.commit()
-        self.session.refresh(user)
         return True

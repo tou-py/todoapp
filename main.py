@@ -1,13 +1,19 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
-app = FastAPI()
+from config.database import create_db_and_tables
+from routes.user_routes import router as user_router
 
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
+    print("Apagando la app...")
 
 
-@app.get("/hello/{name}")
-async def say_hello(name: str):
-    return {"message": f"Hello {name}"}
+app = FastAPI(
+    lifespan=lifespan,
+)
+
+app.include_router(user_router)
