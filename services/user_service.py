@@ -3,6 +3,7 @@ from typing import Optional, List
 from sqlmodel import Session, select
 
 from models.models import User
+from schemas.schemas import UserUpdate
 
 
 class UserService:
@@ -32,17 +33,22 @@ class UserService:
         self.session.refresh(user_data)
         return user_data
 
-    def update(self, user_id: str, user_data: User) -> User:
+    def update(self, user_id: str, user_data: UserUpdate) -> Optional[User]:
 
         user = self.get_user_by_id(user_id)
         if not user:
-            raise ValueError("User does not exist")
+            return None
 
         for key, value in user_data.model_dump(exclude_unset=True).items():
             if key == "password" and value:
                 user.set_password(value)
             elif hasattr(user, key):
                 setattr(user, key, value)
+
+        self.session.add(user)
+        self.session.commit()
+        self.session.refresh(user)
+        return user
 
     def delete(self, user_id: str) -> bool:
         user = self.get_user_by_id(user_id)
