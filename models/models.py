@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Optional
 
 from passlib.context import CryptContext
+from pydantic import EmailStr
 from sqlmodel import Field, SQLModel, Relationship
 
 
@@ -17,9 +18,9 @@ class PriorityEnum(str, Enum):
 
 
 class User(SQLModel, table=True):
-    table_name = "users"
+    __tablename__ = "users"
 
-    id: str = Field(default=lambda: secrets.token_urlsafe(8)[:8], primary_key=True)
+    id: str = Field(default_factory=lambda: secrets.token_urlsafe(8)[:8], primary_key=True)
     first_names: str = Field(nullable=False, min_length=3, max_length=64)
     last_names: str = Field(nullable=False, min_length=3, max_length=64)
     email: str = Field(
@@ -27,17 +28,15 @@ class User(SQLModel, table=True):
         unique=True,
         index=True,
         max_length=64,
-        # validacion minima de email valido
-        regex=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
     )
     password: str = Field(nullable=False, min_length=8)
 
     created_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now()
     )
     updated_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
+        default_factory=lambda: datetime.now(),
+        sa_column_kwargs={"onupdate": lambda: datetime.now()},
     )
 
     # Este campo establece la relacion mediante el ORM entre el usuario y sus tareas
@@ -55,32 +54,41 @@ class User(SQLModel, table=True):
 
 class Task(SQLModel, table=True):
 
-    table_name = "tasks"
+    __tablename__ = "tasks"
 
-    id: str = Field(default=lambda: secrets.token_urlsafe(8)[:8], primary_key=True)
+    id: str = Field(default_factory=lambda: secrets.token_urlsafe(8)[:8], primary_key=True)
     title: str = Field(min_length=5, max_length=100)
     description: Optional[str] = Field(max_length=256)
     completed: bool = Field(default=False)
     priority: PriorityEnum = Field(default=PriorityEnum.PODER)
-    started_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
-    end_at: Optional[datetime]
-    finished_at: Optional[datetime] = Field()
+    started_at: Optional[datetime] = Field(default_factory=lambda: datetime.now())
+    end_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
 
 
     # aquí de la misma manera, esto garantiza la relacion desde el ORK
-    user: str = Relationship(back_populates="tasks")
+    user: "User" = Relationship(back_populates="tasks")
     # Este es el campo que va a figurar como fk
     user_id: str = Field(foreign_key="users.id", nullable=False)
 
-    # La intencion es que una tarea puede estar formada por varias otras menores
-    parent_tasks_id: str = Field(foreign_key="tasks.id", nullable=False)
+    # La intención es que una tarea puede estar formada por varias otras menores
+    # La clave foránea apunta a la ID de la tarea padre.
+    parent_id: Optional[str] = Field(foreign_key="tasks.id", default=None)
+
+    parent: Optional["Task"] = Relationship(
+        back_populates="subtasks",
+        sa_relationship_kwargs={"remote_side": "Task.id"}  # Indica que el lado remoto es la ID de la propia Task
+    )
+    subtasks: list["Task"] = Relationship(
+        back_populates="parent"
+    )
 
     created_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now()
     )
     updated_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
+        default_factory=lambda: datetime.now(),
+        sa_column_kwargs={"onupdate": lambda: datetime.now()},
     )
 
     def __repr__(self):
