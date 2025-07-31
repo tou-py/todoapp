@@ -56,6 +56,19 @@ def update(task_id: str, task_data: TaskUpdate, task_service: TaskService = Depe
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.patch('/{task_id}', response_model=TaskResponse, status_code=status.HTTP_200_OK)
+def partial_update(task_id: str, task_to_patch: TaskUpdate, task_service: TaskService = Depends(get_task_service)):
+    try:
+        patched_task = task_service.patch(task_id, task_to_patch)
+        if not patched_task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return patched_task
+    except IntegrityError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete('/{task_id}', status_code=status.HTTP_200_OK)
 def delete(task_id: str, task_service: TaskService = Depends(get_task_service)):

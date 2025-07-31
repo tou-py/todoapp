@@ -52,6 +52,18 @@ def update(user_id: str, user_update_data: UserUpdate, user_service: UserService
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.patch('/{user_id}', response_model=UserResponse, status_code=status.HTTP_200_OK)
+def partial_update(user_id: str, user_to_patch: UserUpdate, user_service: UserService = Depends(get_user_service)):
+    try:
+        patched_user = user_service.patch(user_id, user_to_patch)
+        if not patched_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return patched_user
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 @router.delete('/{user_id}', status_code=status.HTTP_200_OK)
 def delete(user_id: str, user_service: UserService = Depends(get_user_service)):
     try:
