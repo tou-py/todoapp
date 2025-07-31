@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import Depends, APIRouter, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session
@@ -8,7 +10,7 @@ from config.database import get_session
 from repositories.task_repo import TaskRepository
 from repositories.user_repo import UserRepository
 from routes.user_routes import get_user_repository
-from schemas.schemas import TaskResponse, TaskCreate, TaskUpdate
+from schemas.schemas import TaskResponse, TaskCreate, TaskUpdate, UserResponseForTask, MinimalTaskResponse
 from services.task_service import TaskService
 
 
@@ -40,6 +42,14 @@ def get(task_id: str, task_service: TaskService = Depends(get_task_service)):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
+
+
+@router.get('', status_code=status.HTTP_200_OK)
+def get_all(task_service: TaskService = Depends(get_task_service)):
+    tasks = task_service.get_all()
+    if not tasks:
+        raise HTTPException(status_code=404, detail="No tasks found")
+    return tasks
 
 
 @router.put('/{task_id}', response_model=TaskResponse, status_code=status.HTTP_200_OK)

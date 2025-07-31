@@ -21,7 +21,7 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType, Reposit
     def get_by_id(self, object_id: str) -> Optional[ModelType]:
         return self.repository.get_object_by_id(object_id)
 
-    def get_all(self, offset: int = 0, limit: int = 100) -> List[ModelType]:
+    def get_all(self, offset: int = 0, limit: int = 100) -> Optional[List[ModelType]]:
         return self.repository.get_all(offset, limit)
 
     def create(self, obj_create_data: CreateSchemaType) -> ModelType:

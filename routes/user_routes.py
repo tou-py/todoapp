@@ -39,6 +39,13 @@ def get(user_id: str, user_service: UserService = Depends(get_user_service)):
     return user
 
 
+@router.get('', status_code=status.HTTP_200_OK)
+def get_all(user_service: UserService = Depends(get_user_service)):
+    try:
+        return user_service.get_all()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.put('/{user_id}', response_model=UserResponse, status_code=status.HTTP_200_OK)
 def update(user_id: str, user_update_data: UserUpdate, user_service: UserService = Depends(get_user_service)):
     try:
