@@ -5,12 +5,18 @@ from starlette import status
 from starlette.responses import Response
 
 from config.database import get_session
+from repositories.task_repo import TaskRepository
+from repositories.user_repo import UserRepository
+from routes.user_routes import get_user_repository
 from schemas.schemas import TaskResponse, TaskCreate, TaskUpdate
 from services.task_service import TaskService
 
 
-def get_task_service(session: Session = Depends(get_session)) -> TaskService:
-    return TaskService(session)
+def get_task_repository(session: Session = Depends(get_session)):
+    return TaskRepository(session)
+
+def get_task_service(task_repo: TaskRepository = Depends(get_task_repository), user_repo: UserRepository = Depends(get_user_repository)) -> TaskService:
+    return TaskService(task_repo, user_repo)
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -30,7 +36,7 @@ def create(task_data: TaskCreate, task_service: TaskService = Depends(get_task_s
 
 @router.get('/{task_id}', response_model=TaskResponse, status_code=status.HTTP_200_OK)
 def get(task_id: str, task_service: TaskService = Depends(get_task_service)):
-    task = task_service.get_task_by_id(task_id)
+    task = task_service.get_by_id(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task

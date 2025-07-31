@@ -4,12 +4,15 @@ from sqlmodel import Session
 from starlette import status
 
 from config.database import get_session
+from repositories.user_repo import UserRepository
 from schemas.schemas import UserResponse, UserCreate, UserUpdate
 from services.user_service import UserService
 
+def get_user_repository(session: Session = Depends(get_session)) -> UserRepository:
+    return UserRepository(session)
 
-def get_user_service(session: Session = Depends(get_session)) -> UserService:
-    return UserService(session)
+def get_user_service(user_repo: UserRepository = Depends(get_user_repository)) -> UserService:
+    return UserService(user_repo)
 
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -30,7 +33,7 @@ def create(user_data: UserCreate, user_service: UserService = Depends(get_user_s
 
 @router.get('/{user_id}', response_model=UserResponse, status_code=status.HTTP_200_OK)
 def get(user_id: str, user_service: UserService = Depends(get_user_service)):
-    user = user_service.get_user_by_id(user_id)
+    user = user_service.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
@@ -55,5 +58,6 @@ def delete(user_id: str, user_service: UserService = Depends(get_user_service)):
         if not user_service.delete(user_id):
             raise HTTPException(status_code=404, detail="User not found")
         return {"message": "User deleted"}
-    except Exception:
+    except Exception as ex:
+        print(f"ERROR AQUI: {str(ex)}")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -22,15 +22,15 @@ class TaskService(BaseService[Task, TaskCreate, TaskUpdate, TaskRepository]):
         if obj_create_data.parent_id:
             parent_task = self.repository.get_object_by_id(str(obj_create_data.parent_id))
             if not parent_task:
-                raise ValueError("Parent not found")
+                raise ValueError(f"Parent task with ID {obj_create_data.parent_id} not found.")
             if parent_task.level >= 3:
-                raise ValueError("Parent task's level top reached")
+                raise ValueError("Parent task's level is too high (max 3) to add a subtask.")
             obj_create_data.level = parent_task.level + 1
         else:
+            # Si no hay parent_id, el nivel siempre es 1
             obj_create_data.level = 1
 
         new_task = self.model(**obj_create_data.model_dump())
-
         return self.repository.create(new_task)
 
     def update(self, task_id: str, data: TaskUpdate) -> Optional[Task]:
@@ -44,19 +44,21 @@ class TaskService(BaseService[Task, TaskCreate, TaskUpdate, TaskRepository]):
                 raise ValueError("Task with same title already exists for this user")
             task.title = data.title
 
-        for key, value in data.model_dump(exclude={'title'}, exclude_unset=True).items():
-            if key == "parent_id" and value is not None:
-                parent_task = self.repository.get_object_by_id(str(value))
+        if data.parent_id is not None:
+            if data.parent_id:
+                parent_task = self.repository.get_object_by_id(str(data.parent_id))
                 if not parent_task:
-                    raise ValueError("New parent task not found.")
-                if parent_task.level >= 4:
+                    raise ValueError(f"New parent task with ID {data.parent_id} not found.")
+                if parent_task.level >= 3:
                     raise ValueError("New parent task's level is too high to add a subtask.")
-                task.parent_id = value
+                task.parent_id = data.parent_id
                 task.level = parent_task.level + 1
-            elif key == "parent_id" and value is None:
+            else:  # parent_id es None
                 task.parent_id = None
                 task.level = 1
-            elif hasattr(task, key):
+
+        for key, value in data.model_dump(exclude={'title, parent_id'}, exclude_unset=True).items():
+            if hasattr(task, key):
                 setattr(task, key, value)
 
         return self.repository.update(task)
