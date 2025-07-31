@@ -62,6 +62,8 @@ class Task(SQLModel, table=True):
     started_at: Optional[datetime] = Field(default_factory=lambda: datetime.now())
     end_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
+    # para representar el nivel entre padres e hijos
+    level: int = Field(default=1)
 
     # aquí de la misma manera, esto garantiza la relacion desde el ORK
     user: "User" = Relationship(back_populates="tasks")

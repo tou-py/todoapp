@@ -49,6 +49,7 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
+    level: int = Field(default=1)
     user_id: str
     parent_id: Optional[str] = None
 
@@ -68,7 +69,7 @@ class TaskUpdate(BaseModel):
 
 
 # Una representación mínima del usuario
-class USerResponseForTask(BaseModel):
+class UserResponseForTask(BaseModel):
     id: str
     first_names: str
     last_names: str
@@ -94,7 +95,7 @@ class TaskResponse(TaskBase):
     id: str
     created_at: datetime
     updated_at: datetime
-    user: USerResponseForTask
+    user: UserResponseForTask
     parent_id: Optional[str] = None
     subtasks: List[MinimalTaskResponse] = []
 
