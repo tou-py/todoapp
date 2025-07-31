@@ -43,6 +43,7 @@ class TaskBase(BaseModel):
     priority: PriorityEnum = PriorityEnum.PODER
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
+    level: Optional[int] = 1
 
     class ConfigDict:
         from_attributes = True
@@ -63,6 +64,7 @@ class TaskUpdate(BaseModel):
     end_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     parent_id: Optional[str] = None
+    level: Optional[int] = None
 
     class ConfigDict:
         from_attributes = True

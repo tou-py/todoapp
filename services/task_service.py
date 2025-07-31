@@ -1,102 +1,64 @@
-from typing import Optional, List
-
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlmodel import Session, select
-
-from models.models import User, Task
+from typing import Optional
+from models.models import Task
+from repositories.task_repo import TaskRepository
+from repositories.user_repo import UserRepository
 from schemas.schemas import TaskCreate, TaskUpdate
+from services.base_service import BaseService
 
 
-class TaskService:
-    def __init__(self, session: Session):
-        self.session = session
+class TaskService(BaseService[Task, TaskCreate, TaskUpdate, TaskRepository]):
+    def __init__(self, task_repo: TaskRepository, user_repo: UserRepository):
+        super().__init__(repository=task_repo, model=Task)
+        self.user_repo = user_repo
 
-    def get_task_by_id(self, task_id: str) -> Optional[Task]:
-        return self.session.get(Task, task_id)
-
-    def get_task_by_user(self, user_id: str, offset: int = 0, limit: int = 100) -> List[Task]:
-        statement = select(Task).where(Task.user_id == user_id).offset(offset).limit(limit)
-        return list(self.session.exec(statement).all())
-
-    def create(self, task_data: TaskCreate) -> Task:
-
-        user = self.session.get(User, task_data.user_id)
+    def create(self, obj_create_data: TaskCreate) -> Task:
+        user = self.user_repo.get_object_by_id(str(obj_create_data.user_id))
         if not user:
             raise ValueError("User not found")
 
-        existing_task_statement = select(Task).where(Task.title == task_data.title, Task.user_id == task_data.user_id)
-        existing_task = self.session.exec(existing_task_statement).first()
+        if self.repository.get_task_by_title(obj_create_data.title, obj_create_data.user_id):
+            raise ValueError("Task already exists")
 
-        if existing_task:
-            raise Exception(f"Task with title:{task_data.title} already exists for this user")
+        if obj_create_data.parent_id:
+            parent_task = self.repository.get_object_by_id(str(obj_create_data.parent_id))
+            if not parent_task:
+                raise ValueError("Parent not found")
+            if parent_task.level >= 3:
+                raise ValueError("Parent task's level top reached")
+            obj_create_data.level = parent_task.level + 1
+        else:
+            obj_create_data.level = 1
 
-        new_task = Task.model_validate(task_data)
+        new_task = self.model(**obj_create_data.model_dump())
 
-        self.session.add(new_task)
+        return self.repository.create(new_task)
 
-        try:
-            self.session.commit()
-            self.session.refresh(new_task)
-            return new_task
-        except IntegrityError as e:
-            self.session.rollback()
-            raise ValueError(f"An Integrity Error in the database has ocurred: {e}")
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise ValueError(f"A database error occurred: {e}")
-        except Exception as e:
-            self.session.rollback()
-            raise ValueError(f"Failed to create new task: {e}")
-
-    def update(self, task_id: str, task_data: TaskUpdate) -> Optional[Task]:
-
-        task = self.get_task_by_id(task_id)
+    def update(self, task_id: str, data: TaskUpdate) -> Optional[Task]:
+        task = self.repository.get_object_by_id(task_id)
         if not task:
-            return None
+            raise ValueError("Task not found")
 
-        update_data = task_data.model_validate(task_data)
+        if data.title and data.title != task.title:
+            existing_task = self.repository.get_task_by_title(data.title, task.user_id)
+            if existing_task and existing_task.id != task.id:
+                raise ValueError("Task with same title already exists for this user")
+            task.title = data.title
 
-        if "title" in update_data and update_data["title"] != task.title:
-            existing_task_statement = select(Task).where(
-                Task.title == update_data["title"],
-                Task.user_id == task.user_id
-            )
-            existing_task = self.session.exec(existing_task_statement).first()
-            if existing_task and existing_task.id != task_id:
-                raise ValueError(f"Task with title:{update_data['title']} already exists for this user")
+        for key, value in data.model_dump(exclude={'title'}, exclude_unset=True).items():
+            if key == "parent_id" and value is not None:
+                parent_task = self.repository.get_object_by_id(str(value))
+                if not parent_task:
+                    raise ValueError("New parent task not found.")
+                if parent_task.level >= 4:
+                    raise ValueError("New parent task's level is too high to add a subtask.")
+                task.parent_id = value
+                task.level = parent_task.level + 1
+            elif key == "parent_id" and value is None:
+                task.parent_id = None
+                task.level = 1
+            elif hasattr(task, key):
+                setattr(task, key, value)
 
-        for key, value in update_data.items():
-            setattr(task, key, value)
+        return self.repository.update(task)
 
-        try:
-            self.session.add(task)
-            self.session.commit()
-            self.session.refresh(task)
-        except IntegrityError as e:
-            self.session.rollback()
-            raise ValueError(f"Failed to update task due to DB integrity error: {e.orig}")
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise ValueError(f"A database error occurred during update: {e}")
-        except Exception as e:
-            self.session.rollback()
-            raise ValueError(f"An unexpected error occurred during update: {e}")
 
-        return task
-
-    def delete(self, task_id: str) -> bool:
-        task = self.get_task_by_id(task_id)
-
-        if not task:
-            return False
-
-        try:
-            self.session.delete(task)
-            self.session.commit()
-            return True
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise ValueError(f"A database error occurred during deletion: {e}")
-        except Exception as e:
-            self.session.rollback()
-            raise ValueError(f"An unexpected error occurred during deletion: {e}")
