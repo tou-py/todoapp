@@ -1,4 +1,5 @@
 from typing import Optional
+
 from models.models import Task
 from repositories.task_repo import TaskRepository
 from repositories.user_repo import UserRepository
@@ -63,4 +64,35 @@ class TaskService(BaseService[Task, TaskCreate, TaskUpdate, TaskRepository]):
 
         return self.repository.update(task)
 
+    def patch(self, task_id: str, data: TaskUpdate) -> Optional[Task]:
+        task = self.repository.get_object_by_id(task_id)
+        if not task:
+            raise ValueError(f"Task with ID {task_id} not found.")
 
+        # Obtener los datos del esquema que realmente se enviaron (el parche)
+        update_data = data.model_dump(exclude_unset=True)
+
+        if 'title' in update_data and update_data['title'] != task.title:
+            existing_task = self.repository.get_task_by_title(update_data['title'], task.user_id)
+            if existing_task and existing_task.id != task.id:
+                raise ValueError(f"Task with title '{update_data['title']}' already exists for this user.")
+
+        if 'parent_id' in update_data:
+            new_parent_id = update_data['parent_id']
+            if new_parent_id:
+                parent_task = self.repository.get_object_by_id(str(new_parent_id))
+                if not parent_task:
+                    raise ValueError(f"New parent task with ID {new_parent_id} not found.")
+                if parent_task.level >= 3:
+                    raise ValueError("New parent task's level is too high (max 3) to add a subtask.")
+
+                task.level = parent_task.level + 1
+            else:  # parent_id es None
+                task.level = 1
+            task.parent_id = new_parent_id
+
+        for key, value in update_data.items():
+            if key not in ['title', 'parent_id'] and hasattr(task, key):
+                setattr(task, key, value)
+
+        return self.repository.update(task)

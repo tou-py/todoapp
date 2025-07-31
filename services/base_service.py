@@ -12,6 +12,7 @@ UpdateSchemaType = TypeVar('UpdateSchemaType', bound=BaseModel)
 # El repositorio a usar
 RepositoryType = TypeVar('RepositoryType')
 
+
 class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType, RepositoryType]):
     def __init__(self, repository: RepositoryType, model: type[ModelType]):
         self.repository = repository
@@ -37,6 +38,19 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType, Reposit
                 setattr(obj, key, value)
 
         return self.repository.update(obj)
+
+    def patch(self, object_id: str, obj_data: UpdateSchemaType) -> Optional[ModelType]:
+        obj = self.repository.get_object_by_id(object_id)
+        if not obj:
+            return None
+
+        update_data = obj_data.model_dump(exclude_unset=True)
+
+        for key, value in update_data.items():
+            if hasattr(obj, key):
+                setattr(obj, key, value)
+
+        return self.repository.update(obj, update_data)
 
     def delete(self, object_id: str) -> bool:
         obj = self.repository.get_object_by_id(object_id)

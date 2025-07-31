@@ -1,4 +1,7 @@
 from typing import Optional
+
+from pydantic import EmailStr
+
 from models.models import User
 from repositories.user_repo import UserRepository
 from schemas.schemas import UserUpdate, UserCreate
@@ -9,10 +12,13 @@ class UserService(BaseService[User, UserCreate, UserUpdate, UserRepository]):
     def __init__(self, user_repo: UserRepository):
         super().__init__(repository=user_repo, model=User)
 
+    def _validate_unique_email(self, email: EmailStr, new_email: str, exclude_user_id: Optional[str]) -> None:
+        email_in_use = self.repository.get_user_by_email(email)
+        if email_in_use and str(email_in_use.id) != exclude_user_id:
+            raise ValueError(f"Email {email} is already in use.")
+
     def create(self, data: UserCreate) -> User:
-        existing_user = self.repository.get_user_by_email(data.email)
-        if existing_user:
-            raise ValueError(f'User {data.email} already exists')
+        self._validate_unique_email(data.email)
 
         user_model = self.model(**data.model_dump())
         user_model.set_password(user_model.password)
@@ -20,7 +26,7 @@ class UserService(BaseService[User, UserCreate, UserUpdate, UserRepository]):
         return self.repository.create(user_model)
 
     def update(self, user_id: str, data: UserUpdate) -> Optional[User]:
-        user_to_update = self.repository.get_object_by_id(user_id)
+        user_to_update = self.get_by_id(user_id)
         if not user_to_update:
             raise ValueError(f"User with ID {user_id} not found.")
 
@@ -30,9 +36,7 @@ class UserService(BaseService[User, UserCreate, UserUpdate, UserRepository]):
 
         # Manejo de actualización de email
         if data.email and data.email != user_to_update.email:
-            existing_with_new_email = self.repository.get_user_by_email(data.email)
-            if existing_with_new_email and str(existing_with_new_email.id) != user_id:  # Convertir a str para comparar
-                raise ValueError(f'Email "{data.email}" already registered by another user.')
+            self._validate_unique_email(data.email, exclude_user_id=user_id)
             user_to_update.email = data.email
 
         # Actualiza otros campos generales
@@ -41,8 +45,26 @@ class UserService(BaseService[User, UserCreate, UserUpdate, UserRepository]):
             if hasattr(user_to_update, key):
                 setattr(user_to_update, key, value)
 
-        try:
-            return self.repository.update(user_to_update)
-        except Exception as e:
-            raise ValueError(f"Error updating user: {e}") from e
+        return self.repository.update(user_to_update)
 
+    def patch(self, user_id: str, data: UserUpdate) -> Optional[User]:
+
+        user_to_patch = self.repository.get_object_by_id(user_id)
+        if not user_to_patch:
+            raise ValueError(f"User with ID {user_id} not found.")
+
+        # validar email
+        if data.email:
+            if data.email != user_to_patch.email:
+                self._validate_unique_email(data.email, exclude_user_id=user_id)
+            user_to_patch.email = data.email
+
+        if data.password:
+            user_to_patch.set_password(data.password)
+
+        # actualizar otros campos
+        for key, value in data.model_dump(exclude={'password', 'email'}, exclude_unset=True).items():
+            if hasattr(user_to_patch, key):
+                setattr(user_to_patch, key, value)
+
+        return self.repository.update(user_to_patch)
