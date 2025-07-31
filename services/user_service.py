@@ -1,99 +1,48 @@
-from typing import Optional, List
-
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlmodel import Session, select
-
+from typing import Optional
 from models.models import User
+from repositories.user_repo import UserRepository
 from schemas.schemas import UserUpdate, UserCreate
+from services.base_service import BaseService
 
 
-class UserService:
-    def __init__(self, session: Session):
-        self.session = session
+class UserService(BaseService[User, UserCreate, UserUpdate, UserRepository]):
+    def __init__(self, user_repo: UserRepository):
+        super().__init__(repository=user_repo, model=User)
 
-    def get_user_by_id(self, user_id: str) -> Optional[User]:
-        return self.session.get(User, user_id)
-
-    def get_user_by_email(self, email: str) -> Optional[User]:
-        statement = select(User).where(User.email == email)
-        return self.session.exec(statement).first()
-
-    def get_all_users(self, offset: int = 0, limit: int = 100) -> List[User]:
-        statement = select(User).offset(offset).limit(limit)
-        return list(self.session.exec(statement).all())
-
-    def create(self, user_data: UserCreate) -> User:
-        existing_user = self.get_user_by_email(user_data.email)
+    def create(self, data: UserCreate) -> User:
+        existing_user = self.repository.get_user_by_email(data.email)
         if existing_user:
-            raise ValueError("User already exists")
+            raise ValueError(f'User {data.email} already exists')
 
-        user = User.model_validate(user_data)
-        user.set_password(user.password)
+        user_model = self.model(**data.model_dump())
+        user_model.set_password(user_model.password)
 
-        try:
-            self.session.add(user)
-            self.session.commit()
-            self.session.refresh(user)
-            return user
-        except IntegrityError as e:
-            print(str(e))
-            self.session.rollback()
-            raise ValueError("Failed to create user due to DB integrity error")
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise e
-        except Exception as e:
-            self.session.rollback()
-            raise e
+        return self.repository.create(user_model)
 
-    def update(self, user_id: str, user_data: UserUpdate) -> Optional[User]:
-        user = self.get_user_by_id(user_id)
-        if not user:
-            return None
+    def update(self, user_id: str, data: UserUpdate) -> Optional[User]:
+        user_to_update = self.repository.get_object_by_id(user_id)
+        if not user_to_update:
+            raise ValueError(f"User with ID {user_id} not found.")
 
-        update_data = user_data.model_dump(exclude_unset=True)
+        # Manejo de actualización de contraseña
+        if data.password:
+            user_to_update.set_password(data.password)
 
-        if "password" in update_data:
-            user.set_password(update_data["password"])
-            del update_data["password"]
+        # Manejo de actualización de email
+        if data.email and data.email != user_to_update.email:
+            existing_with_new_email = self.repository.get_user_by_email(data.email)
+            if existing_with_new_email and str(existing_with_new_email.id) != user_id:  # Convertir a str para comparar
+                raise ValueError(f'Email "{data.email}" already registered by another user.')
+            user_to_update.email = data.email
 
-        # Validar email duplicado
-        if "email" in update_data and update_data["email"] != user.email:
-            existing = self.get_user_by_email(update_data["email"])
-            if existing and existing.id != user_id:
-                raise ValueError("Email already in use")
-
-        for key, value in update_data.items():
-            setattr(user, key, value)
+        # Actualiza otros campos generales
+        # exclude={'password', 'email'} para no intentar establecerlos de nuevo
+        for key, value in data.model_dump(exclude={'password', 'email'}, exclude_unset=True).items():
+            if hasattr(user_to_update, key):
+                setattr(user_to_update, key, value)
 
         try:
-            self.session.add(user)
-            self.session.commit()
-            self.session.refresh(user)
-        except IntegrityError as e:
-            self.session.rollback()
-            raise ValueError(f"Failed to update user due to DB integrity error: {e.orig}")
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise ValueError(f"A database error occurred during update: {e}")
+            return self.repository.update(user_to_update)
         except Exception as e:
-            self.session.rollback()
-            raise ValueError(f"An unexpected error occurred during update: {e}")
+            raise ValueError(f"Error updating user: {e}") from e
 
-        return user
-
-    def delete(self, user_id: str) -> bool:
-        user = self.get_user_by_id(user_id)
-        if not user:
-            return False
-
-        try:
-            self.session.delete(user)
-            self.session.commit()
-            return True
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise ValueError(f"A database error occurred during deletion: {e}")
-        except Exception as e:
-            self.session.rollback()
-            raise ValueError(f"An unexpected error occurred during deletion: {e}")
