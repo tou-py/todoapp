@@ -5,6 +5,7 @@ from sqlmodel import Session, SQLModel, select
 
 Modeltype = TypeVar("Modeltype", bound=SQLModel)
 
+
 class BaseRepository(Generic[Modeltype]):
     def __init__(self, session: Session, model: Type[Modeltype]):
         self.session = session
@@ -60,7 +61,6 @@ class BaseRepository(Generic[Modeltype]):
         except Exception as ex:
             self.session.rollback()
             raise ex
-
 
     def delete(self, obj: Modeltype) -> bool:
         try:

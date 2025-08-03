@@ -100,4 +100,3 @@ class TaskResponse(TaskBase):
     user: UserResponseForTask
     parent_id: Optional[str] = None
     subtasks: List[MinimalTaskResponse] = []
-

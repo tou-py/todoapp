@@ -20,9 +20,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
 @app.get('/')
 async def root():
     return JSONResponse({'message': 'Welcome to the todo app API :)', 'status': status.HTTP_200_OK})
+
 
 app.include_router(user_router)
 app.include_router(task_router)
