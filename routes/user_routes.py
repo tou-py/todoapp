@@ -8,8 +8,10 @@ from repositories.user_repo import UserRepository
 from schemas.schemas import UserResponse, UserCreate, UserUpdate
 from services.user_service import UserService
 
+
 def get_user_repository(session: Session = Depends(get_session)) -> UserRepository:
     return UserRepository(session)
+
 
 def get_user_service(user_repo: UserRepository = Depends(get_user_repository)) -> UserService:
     return UserService(user_repo)
@@ -39,12 +41,13 @@ def get(user_id: str, user_service: UserService = Depends(get_user_service)):
     return user
 
 
-@router.get('', status_code=status.HTTP_200_OK)
-def get_all(user_service: UserService = Depends(get_user_service)):
+@router.get('/limit={limit}/offset={offset}', status_code=status.HTTP_200_OK)
+def get_all(limit: int = 100, offset: int = 0, user_service: UserService = Depends(get_user_service)):
     try:
-        return user_service.get_all()
+        return user_service.get_all(limit=limit, offset=offset)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.put('/{user_id}', response_model=UserResponse, status_code=status.HTTP_200_OK)
 def update(user_id: str, user_update_data: UserUpdate, user_service: UserService = Depends(get_user_service)):
@@ -70,6 +73,7 @@ def partial_update(user_id: str, user_to_patch: UserUpdate, user_service: UserSe
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 @router.delete('/{user_id}', status_code=status.HTTP_200_OK)
 def delete(user_id: str, user_service: UserService = Depends(get_user_service)):

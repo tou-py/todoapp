@@ -1,18 +1,18 @@
 from typing import Generator
 
 from sqlmodel import SQLModel, create_engine, Session
+from .settings import settings
 
-# SQLite connection string
-sqlite_file_name = "tasks.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
+SQLAlchemy_DATABASE_URL = settings.DATABASE_URL
 
 # Create engine with SQL statement logging enabled
-engine = create_engine(sqlite_url, echo=True)
+engine = create_engine(SQLAlchemy_DATABASE_URL, echo=settings.ECHO_SQL)
 
 
 # Function to create database tables from SQLModel classes
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+# ahora que funciona alembic esta función ya no es necesaria
+# def create_db_and_tables():
+#     SQLModel.metadata.create_all(engine)
 
 
 def get_session() -> Generator[Session, None, None]:

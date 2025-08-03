@@ -22,7 +22,7 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType, Reposit
         return self.repository.get_object_by_id(object_id)
 
     def get_all(self, offset: int = 0, limit: int = 100) -> Optional[List[ModelType]]:
-        return self.repository.get_all(offset, limit)
+        return self.repository.get_all(offset=offset, limit=limit)
 
     def create(self, obj_create_data: CreateSchemaType) -> ModelType:
         obj_model = self.model(**obj_create_data.model_dump())
