@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from models.models import Task
 from repositories.task_repo import TaskRepository
@@ -11,6 +11,9 @@ class TaskService(BaseService[Task, TaskCreate, TaskUpdate, TaskRepository]):
     def __init__(self, task_repo: TaskRepository, user_repo: UserRepository):
         super().__init__(repository=task_repo, model=Task)
         self.user_repo = user_repo
+
+    def get_all_tasks(self, user_id: str, offset: int = 0, limit: int = 100) -> List[Task]:
+        return self.repository.get_task_by_user(user_id=user_id, offset=offset, limit=limit)
 
     def create(self, obj_create_data: TaskCreate) -> Task:
         user = self.user_repo.get_object_by_id(str(obj_create_data.user_id))

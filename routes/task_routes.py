@@ -44,9 +44,16 @@ def get(task_id: str, task_service: TaskService = Depends(get_task_service)):
     return task
 
 
-@router.get('', status_code=status.HTTP_200_OK)
-def get_all(task_service: TaskService = Depends(get_task_service)):
-    tasks = task_service.get_all()
+@router.get('/limit={limit}/offset={offset}', status_code=status.HTTP_200_OK)
+def get_all(limit: int = 100, offset: int = 0, task_service: TaskService = Depends(get_task_service)):
+    tasks = task_service.get_all(limit=limit, offset=offset)
+    if not tasks:
+        raise HTTPException(status_code=404, detail="No tasks found")
+    return tasks
+
+@router.get('/user={user_id}/limit={limit}/offset={offset}', status_code=status.HTTP_200_OK)
+def get_all_by_user(user_id: str, limit: int = 100, offset: int = 0,task_service: TaskService = Depends(get_task_service)):
+    tasks = task_service.get_all_tasks(user_id=user_id, limit=limit, offset=offset)
     if not tasks:
         raise HTTPException(status_code=404, detail="No tasks found")
     return tasks
