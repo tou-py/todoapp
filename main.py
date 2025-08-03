@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from starlette import status
 from starlette.responses import JSONResponse
 
-from config.database import create_db_and_tables
+# from config.database import create_db_and_tables
 from config.settings import settings
 from routes.task_routes import router as task_router
 from routes.user_routes import router as user_router
@@ -12,7 +12,8 @@ from routes.user_routes import router as user_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_db_and_tables()
+    # ya no es necesaria gracias a alembic
+    # create_db_and_tables()
     yield
     print("Apagando la app...")
 
