@@ -44,7 +44,7 @@ def get(user_id: str, user_service: UserService = Depends(get_user_service)):
 @router.get('/limit={limit}/offset={offset}', status_code=status.HTTP_200_OK)
 def get_all(limit: int = 100, offset: int = 0, user_service: UserService = Depends(get_user_service)):
     try:
-        return user_service.get_all(limit, offset)
+        return user_service.get_all(limit=limit, offset=offset)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

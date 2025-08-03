@@ -73,7 +73,7 @@ class TaskService(BaseService[Task, TaskCreate, TaskUpdate, TaskRepository]):
             raise ValueError(f"Task with ID {task_id} not found.")
 
         # Obtener los datos del esquema que realmente se enviaron (el parche)
-        update_data = data.model_dump(exclude_unset=True)
+        update_data = data.model_dump(exclude_unset=True, exclude_none=True)
 
         if 'title' in update_data and update_data['title'] != task.title:
             existing_task = self.repository.get_task_by_title(update_data['title'], task.user_id)

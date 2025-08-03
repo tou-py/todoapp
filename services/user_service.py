@@ -12,13 +12,13 @@ class UserService(BaseService[User, UserCreate, UserUpdate, UserRepository]):
     def __init__(self, user_repo: UserRepository):
         super().__init__(repository=user_repo, model=User)
 
-    def _validate_unique_email(self, email: EmailStr, new_email: str, exclude_user_id: Optional[str]) -> None:
+    def _validate_unique_email(self, email: EmailStr, exclude_user_id: Optional[str]) -> None:
         email_in_use = self.repository.get_user_by_email(email)
         if email_in_use and str(email_in_use.id) != exclude_user_id:
             raise ValueError(f"Email {email} is already in use.")
 
     def create(self, data: UserCreate) -> User:
-        self._validate_unique_email(data.email)
+        self._validate_unique_email(data.email, exclude_user_id=None)
 
         user_model = self.model(**data.model_dump())
         user_model.set_password(user_model.password)
@@ -63,7 +63,7 @@ class UserService(BaseService[User, UserCreate, UserUpdate, UserRepository]):
             user_to_patch.set_password(data.password)
 
         # actualizar otros campos
-        for key, value in data.model_dump(exclude={'password', 'email'}, exclude_unset=True).items():
+        for key, value in data.model_dump(exclude={'password', 'email'}, exclude_unset=True,  exclude_none=True).items():
             if hasattr(user_to_patch, key):
                 setattr(user_to_patch, key, value)
 
