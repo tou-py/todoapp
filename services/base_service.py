@@ -18,18 +18,18 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType, Reposit
         self.repository = repository
         self.model = model
 
-    def get_by_id(self, object_id: str) -> Optional[ModelType]:
-        return self.repository.get_object_by_id(object_id)
+    async def get_by_id(self, object_id: str) -> Optional[ModelType]:
+        return await self.repository.get_object_by_id(object_id)
 
-    def get_all(self, offset: int = 0, limit: int = 100) -> Optional[List[ModelType]]:
-        return self.repository.get_all(offset=offset, limit=limit)
+    async def get_all(self, offset: int = 0, limit: int = 100) -> Optional[List[ModelType]]:
+        return await self.repository.get_all(offset=offset, limit=limit)
 
-    def create(self, obj_create_data: CreateSchemaType) -> ModelType:
+    async def create(self, obj_create_data: CreateSchemaType) -> ModelType:
         obj_model = self.model(**obj_create_data.model_dump())
-        return self.repository.create(obj_model)
+        return await self.repository.create(obj_model)
 
-    def update(self, object_id: str, obj_data: UpdateSchemaType) -> Optional[ModelType]:
-        obj = self.repository.get_object_by_id(object_id)
+    async def update(self, object_id: str, obj_data: UpdateSchemaType) -> Optional[ModelType]:
+        obj = await self.repository.get_object_by_id(object_id)
         if not obj:
             return None
 
@@ -37,10 +37,10 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType, Reposit
             if hasattr(obj, key):
                 setattr(obj, key, value)
 
-        return self.repository.update(obj)
+        return await self.repository.update(obj)
 
-    def patch(self, object_id: str, obj_data: UpdateSchemaType) -> Optional[ModelType]:
-        obj = self.repository.get_object_by_id(object_id)
+    async def patch(self, object_id: str, obj_data: UpdateSchemaType) -> Optional[ModelType]:
+        obj = await self.repository.get_object_by_id(object_id)
         if not obj:
             return None
 
@@ -50,10 +50,10 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType, Reposit
             if hasattr(obj, key):
                 setattr(obj, key, value)
 
-        return self.repository.update(obj, update_data)
+        return await self.repository.update(obj, update_data)
 
-    def delete(self, object_id: str) -> bool:
-        obj = self.repository.get_object_by_id(object_id)
+    async def delete(self, object_id: str) -> bool:
+        obj = await self.repository.get_object_by_id(object_id)
         if not obj:
             return False
-        return self.repository.delete(obj)
+        return await self.repository.delete(obj)

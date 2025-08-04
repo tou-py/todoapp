@@ -1,20 +1,17 @@
-from typing import Generator
+from typing import AsyncGenerator
 
-from sqlmodel import SQLModel, create_engine, Session
-from .settings import settings
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-SQLAlchemy_DATABASE_URL = settings.DATABASE_URL
+from config.settings import settings
 
-# Create engine with SQL statement logging enabled
-engine = create_engine(SQLAlchemy_DATABASE_URL, echo=settings.ECHO_SQL)
+engine = create_async_engine(settings.DATABASE_URL, echo=settings.ECHO_SQL)
 
-
-# Function to create database tables from SQLModel classes
-# ahora que funciona alembic esta función ya no es necesaria
-# def create_db_and_tables():
-#     SQLModel.metadata.create_all(engine)
+async_session = async_sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
-def get_session() -> Generator[Session, None, None]:
-    with Session(engine) as session:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session() as session:
         yield session

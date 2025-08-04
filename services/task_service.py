@@ -12,19 +12,19 @@ class TaskService(BaseService[Task, TaskCreate, TaskUpdate, TaskRepository]):
         super().__init__(repository=task_repo, model=Task)
         self.user_repo = user_repo
 
-    def get_all_tasks(self, user_id: str, offset: int = 0, limit: int = 100) -> List[Task]:
-        return self.repository.get_task_by_user(user_id=user_id, offset=offset, limit=limit)
+    async def get_all_tasks(self, user_id: str, offset: int = 0, limit: int = 100) -> List[Task]:
+        return await self.repository.get_task_by_user(user_id=user_id, offset=offset, limit=limit)
 
-    def create(self, obj_create_data: TaskCreate) -> Task:
-        user = self.user_repo.get_object_by_id(str(obj_create_data.user_id))
+    async def create(self, obj_create_data: TaskCreate) -> Task:
+        user = await self.user_repo.get_object_by_id(str(obj_create_data.user_id))
         if not user:
             raise ValueError("User not found")
 
-        if self.repository.get_task_by_title(obj_create_data.title, obj_create_data.user_id):
+        if await self.repository.get_task_by_title(obj_create_data.title, obj_create_data.user_id):
             raise ValueError("Task already exists")
 
         if obj_create_data.parent_id:
-            parent_task = self.repository.get_object_by_id(str(obj_create_data.parent_id))
+            parent_task = await self.repository.get_object_by_id(str(obj_create_data.parent_id))
             if not parent_task:
                 raise ValueError(f"Parent task with ID {obj_create_data.parent_id} not found.")
             if parent_task.level >= 3:
@@ -35,22 +35,22 @@ class TaskService(BaseService[Task, TaskCreate, TaskUpdate, TaskRepository]):
             obj_create_data.level = 1
 
         new_task = self.model(**obj_create_data.model_dump())
-        return self.repository.create(new_task)
+        return await self.repository.create(new_task)
 
-    def update(self, task_id: str, data: TaskUpdate) -> Optional[Task]:
-        task = self.repository.get_object_by_id(task_id)
+    async def update(self, task_id: str, data: TaskUpdate) -> Optional[Task]:
+        task = await self.repository.get_object_by_id(task_id)
         if not task:
             raise ValueError("Task not found")
 
         if data.title and data.title != task.title:
-            existing_task = self.repository.get_task_by_title(data.title, task.user_id)
+            existing_task = await self.repository.get_task_by_title(data.title, task.user_id)
             if existing_task and existing_task.id != task.id:
                 raise ValueError("Task with same title already exists for this user")
             task.title = data.title
 
         if data.parent_id is not None:
             if data.parent_id:
-                parent_task = self.repository.get_object_by_id(str(data.parent_id))
+                parent_task = await self.repository.get_object_by_id(str(data.parent_id))
                 if not parent_task:
                     raise ValueError(f"New parent task with ID {data.parent_id} not found.")
                 if parent_task.level >= 3:
@@ -61,14 +61,14 @@ class TaskService(BaseService[Task, TaskCreate, TaskUpdate, TaskRepository]):
                 task.parent_id = None
                 task.level = 1
 
-        for key, value in data.model_dump(exclude={'title, parent_id'}, exclude_unset=True).items():
+        for key, value in data.model_dump(exclude={'title', 'parent_id'}, exclude_unset=True).items():
             if hasattr(task, key):
                 setattr(task, key, value)
 
-        return self.repository.update(task)
+        return await self.repository.update(task)
 
-    def patch(self, task_id: str, data: TaskUpdate) -> Optional[Task]:
-        task = self.repository.get_object_by_id(task_id)
+    async def patch(self, task_id: str, data: TaskUpdate) -> Optional[Task]:
+        task = await self.repository.get_object_by_id(task_id)
         if not task:
             raise ValueError(f"Task with ID {task_id} not found.")
 
@@ -76,14 +76,14 @@ class TaskService(BaseService[Task, TaskCreate, TaskUpdate, TaskRepository]):
         update_data = data.model_dump(exclude_unset=True, exclude_none=True)
 
         if 'title' in update_data and update_data['title'] != task.title:
-            existing_task = self.repository.get_task_by_title(update_data['title'], task.user_id)
+            existing_task = await self.repository.get_task_by_title(update_data['title'], task.user_id)
             if existing_task and existing_task.id != task.id:
                 raise ValueError(f"Task with title '{update_data['title']}' already exists for this user.")
 
         if 'parent_id' in update_data:
             new_parent_id = update_data['parent_id']
             if new_parent_id:
-                parent_task = self.repository.get_object_by_id(str(new_parent_id))
+                parent_task = await self.repository.get_object_by_id(str(new_parent_id))
                 if not parent_task:
                     raise ValueError(f"New parent task with ID {new_parent_id} not found.")
                 if parent_task.level >= 3:
@@ -98,4 +98,4 @@ class TaskService(BaseService[Task, TaskCreate, TaskUpdate, TaskRepository]):
             if key not in ['title', 'parent_id'] and hasattr(task, key):
                 setattr(task, key, value)
 
-        return self.repository.update(task)
+        return await self.repository.update(task)
