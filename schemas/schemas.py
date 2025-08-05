@@ -10,6 +10,8 @@ class UserBase(BaseModel):
     first_names: str = Field(None, min_length=3, max_length=64)
     last_names: str = Field(None, min_length=3, max_length=64)
     email: EmailStr = Field(None, min_length=3, max_length=64)
+    is_active: Optional[bool] = True
+    is_admin: Optional[bool] = False
 
     # Le dice a pydantic que mapee desde los atributos del ORM
     class ConfigDict:
@@ -25,6 +27,8 @@ class UserUpdate(BaseModel):
     last_names: Optional[str] = Field(None, min_length=3, max_length=64)
     email: Optional[EmailStr] = Field(None, min_length=3, max_length=64)
     password: Optional[str] = Field(None, min_length=3, max_length=64)
+    is_active: Optional[bool] = True
+    is_admin: Optional[bool] = False
 
     class ConfigDict:
         from_attributes = True
@@ -32,6 +36,8 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     id: str
+    is_active: bool
+    is_admin: bool
     created_at: datetime
     updated_at: datetime
 
