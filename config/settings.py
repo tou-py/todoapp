@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     DATABASE_URL: str
     DEBUG: bool = False
+    PORT: int = 8000
     ECHO_SQL: bool = False
     PROJECT_NAME: str
     PROJECT_DESCRIPTION: str
