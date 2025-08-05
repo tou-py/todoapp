@@ -100,3 +100,9 @@ class TaskResponse(TaskBase):
     user: UserResponseForTask
     parent_id: Optional[str] = None
     subtasks: List[MinimalTaskResponse] = []
+
+
+class Token(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str
