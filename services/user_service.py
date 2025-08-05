@@ -12,21 +12,21 @@ class UserService(BaseService[User, UserCreate, UserUpdate, UserRepository]):
     def __init__(self, user_repo: UserRepository):
         super().__init__(repository=user_repo, model=User)
 
-    def _validate_unique_email(self, email: EmailStr, exclude_user_id: Optional[str]) -> None:
-        email_in_use = self.repository.get_user_by_email(email)
+    async def _validate_unique_email(self, email: EmailStr, exclude_user_id: Optional[str]) -> None:
+        email_in_use = await self.repository.get_user_by_email(email)
         if email_in_use and str(email_in_use.id) != exclude_user_id:
             raise ValueError(f"Email {email} is already in use.")
 
-    def create(self, data: UserCreate) -> User:
-        self._validate_unique_email(data.email, exclude_user_id=None)
+    async def create(self, data: UserCreate) -> User:
+        await self._validate_unique_email(data.email, exclude_user_id=None)
 
         user_model = self.model(**data.model_dump())
         user_model.set_password(user_model.password)
 
-        return self.repository.create(user_model)
+        return await self.repository.create(user_model)
 
-    def update(self, user_id: str, data: UserUpdate) -> Optional[User]:
-        user_to_update = self.get_by_id(user_id)
+    async def update(self, user_id: str, data: UserUpdate) -> Optional[User]:
+        user_to_update = await self.get_by_id(user_id)
         if not user_to_update:
             raise ValueError(f"User with ID {user_id} not found.")
 
@@ -36,7 +36,7 @@ class UserService(BaseService[User, UserCreate, UserUpdate, UserRepository]):
 
         # Manejo de actualización de email
         if data.email and data.email != user_to_update.email:
-            self._validate_unique_email(data.email, exclude_user_id=user_id)
+            await self._validate_unique_email(data.email, exclude_user_id=user_id)
             user_to_update.email = data.email
 
         # Actualiza otros campos generales
@@ -45,26 +45,26 @@ class UserService(BaseService[User, UserCreate, UserUpdate, UserRepository]):
             if hasattr(user_to_update, key):
                 setattr(user_to_update, key, value)
 
-        return self.repository.update(user_to_update)
+        return await self.repository.update(user_to_update)
 
-    def patch(self, user_id: str, data: UserUpdate) -> Optional[User]:
+    async def patch(self, user_id: str, data: UserUpdate) -> Optional[User]:
 
-        user_to_patch = self.repository.get_object_by_id(user_id)
+        user_to_patch = await self.repository.get_object_by_id(user_id)
         if not user_to_patch:
             raise ValueError(f"User with ID {user_id} not found.")
 
         # validar email
         if data.email:
             if data.email != user_to_patch.email:
-                self._validate_unique_email(data.email, exclude_user_id=user_id)
+                await self._validate_unique_email(data.email, exclude_user_id=user_id)
             user_to_patch.email = data.email
 
         if data.password:
             user_to_patch.set_password(data.password)
 
         # actualizar otros campos
-        for key, value in data.model_dump(exclude={'password', 'email'}, exclude_unset=True,  exclude_none=True).items():
+        for key, value in data.model_dump(exclude={'password', 'email'}, exclude_unset=True, exclude_none=True).items():
             if hasattr(user_to_patch, key):
                 setattr(user_to_patch, key, value)
 
-        return self.repository.update(user_to_patch)
+        return await self.repository.update(user_to_patch)

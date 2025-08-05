@@ -29,6 +29,8 @@ class User(SQLModel, table=True):
         max_length=64,
     )
     password: str = Field(nullable=False, min_length=8)
+    is_active: bool = Field(nullable=False, default=True)
+    is_admin: bool = Field(nullable=False, default=False)
 
     created_at: Optional[datetime] = Field(
         default_factory=lambda: datetime.now()

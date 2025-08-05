@@ -1,27 +1,14 @@
 services:
   web:
-    build: .
-    command: [ "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload" ]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      ["/bin/sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT} --loop uvloop --http httptools --workers 1" ]
     ports:
-      - "8000:8000"
+      - ${PORT}:${PORT}
     env_file:
       - .env
-    deploy:
-      resources:
-        limits:
-          # 50% de una cPU
-          cpus: '0.5'
-          # Limite de 512MB de RAM
-          memory: 512M
-          # nota: docker va a matar el servicio si es que intenta consumir mas de lo definido arriba
-        reservations:
-          # Garantiza que el contenedor tendrá al menos el 25% de una CPU
-          cpus: '0.25'
-          # Garantiza que el contenedor tendrá al menos 256 MB de RAM
-          memory: 256M
-      # indíca que hacer en caso de una falla interna
-      restart_policy:
-        # si el servicio falla entonces luego de 5 segundos se reiniciará hasta un máximo de 3 veces
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
+    restart: on-failure
+    mem_limit: 512m
+    cpus: 0.5

@@ -1,13 +1,12 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from starlette import status
+from fastapi import FastAPI, status
 from starlette.responses import JSONResponse
 
-# from config.database import create_db_and_tables
 from config.settings import settings
 from routes.task_routes import router as task_router
 from routes.user_routes import router as user_router
+from routes.auth_routes import router as auth_router
 
 
 @asynccontextmanager
@@ -34,3 +33,4 @@ async def root():
 
 app.include_router(user_router)
 app.include_router(task_router)
+app.include_router(auth_router)
