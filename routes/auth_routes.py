@@ -3,18 +3,19 @@ from fastapi.params import Depends
 from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.database import get_session
+from config.dependencies import get_session
+from config.dependencies import get_auth_service
 from config.security import create_token
 from config.settings import settings
 from repositories.user_repo import UserRepository
 from schemas.schemas import Token
-from services.auth_service import authenticate_user
+from services.auth_service import AuthService
 
 router = APIRouter(tags=["auth"])
 
 @router.post('/login', response_model=Token)
-async def login(email: str, password: str, session: AsyncSession = Depends(get_session)):
-    user = await authenticate_user(session, email, password)
+async def login(email: str, password: str, auth_service: AuthService = Depends(get_auth_service)):
+    user = await auth_service.authenticate_user(email, password)
     if not user:
         raise HTTPException(status_code=404, detail="Incorrect email or password", headers={"WWW-Authenticate": "Bearer"})
 

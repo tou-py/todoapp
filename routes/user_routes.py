@@ -1,22 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import Session
-from starlette import status
 
-from config.database import get_session
-from repositories.user_repo import UserRepository
+from config.dependencies import is_owner_or_admin_user, get_user_service, admin_required
+from models.models import User
 from schemas.schemas import UserResponse, UserCreate, UserUpdate
 from services.user_service import UserService
-
-
-async def get_user_repository(session: AsyncSession = Depends(get_session)) -> UserRepository:
-    return UserRepository(session)
-
-
-async def get_user_service(user_repo: UserRepository = Depends(get_user_repository)) -> UserService:
-    return UserService(user_repo)
-
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -35,7 +23,8 @@ async def create(user_data: UserCreate, user_service: UserService = Depends(get_
 
 
 @router.get('/{user_id}', response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def get(user_id: str, user_service: UserService = Depends(get_user_service)):
+async def get(user_id: str, user_service: UserService = Depends(get_user_service),
+              current_user: User = Depends(is_owner_or_admin_user)):
     user = await user_service.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -43,7 +32,8 @@ async def get(user_id: str, user_service: UserService = Depends(get_user_service
 
 
 @router.get('/limit={limit}/offset={offset}', status_code=status.HTTP_200_OK)
-async def get_all(limit: int = 100, offset: int = 0, user_service: UserService = Depends(get_user_service)):
+async def get_all(limit: int = 100, offset: int = 0, user_service: UserService = Depends(get_user_service),
+                  current_user: User = Depends(admin_required)):
     try:
         return await user_service.get_all(limit=limit, offset=offset)
     except ValueError as e:
@@ -51,7 +41,8 @@ async def get_all(limit: int = 100, offset: int = 0, user_service: UserService =
 
 
 @router.put('/{user_id}', response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def update(user_id: str, user_update_data: UserUpdate, user_service: UserService = Depends(get_user_service)):
+async def update(user_id: str, user_update_data: UserUpdate, user_service: UserService = Depends(get_user_service),
+                 current_user: User = Depends(is_owner_or_admin_user)):
     try:
         updated_user = await user_service.update(user_id, user_update_data)
         if not updated_user:
@@ -64,7 +55,8 @@ async def update(user_id: str, user_update_data: UserUpdate, user_service: UserS
 
 
 @router.patch('/{user_id}', response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def partial_update(user_id: str, user_to_patch: UserUpdate, user_service: UserService = Depends(get_user_service)):
+async def partial_update(user_id: str, user_to_patch: UserUpdate, user_service: UserService = Depends(get_user_service),
+                         current_user: User = Depends(is_owner_or_admin_user)):
     try:
         patched_user = await user_service.patch(user_id, user_to_patch)
         if not patched_user:
@@ -77,7 +69,8 @@ async def partial_update(user_id: str, user_to_patch: UserUpdate, user_service: 
 
 
 @router.delete('/{user_id}', status_code=status.HTTP_200_OK)
-async def delete(user_id: str, user_service: UserService = Depends(get_user_service)):
+async def delete(user_id: str, user_service: UserService = Depends(get_user_service),
+                 current_user: User = Depends(is_owner_or_admin_user)):
     try:
         if not await user_service.delete(user_id):
             raise HTTPException(status_code=404, detail="User not found")
